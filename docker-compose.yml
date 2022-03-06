@@ -1,19 +1,12 @@
-# Warning: This docker-compose file is made for development purposes.
-# Using it will build an image from the locally cloned repository.
-#
-# If you want to use Invidious in production, see the docker-compose.yml file provided
-# in the installation documentation: https://docs.invidious.io/Installation.md
-
 version: "3"
 services:
 
   invidious:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    image: quay.io/invidious/invidious:latest-arm64
+    # image: quay.io/invidious/invidious:latest # non-ARM64/AArch64 devices
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     environment:
       # Please read the following file for a comprehensive list of all available
       # configuration options and their associated syntax:
@@ -26,6 +19,22 @@ services:
           host: invidious-db
           port: 5432
         check_tables: true
+        https_only: false
+        hsts: false
+        popular_enabled: false
+        captcha_enabled: false
+        default_user_preferences:
+          captions: ["English", "Swedish", ""]
+          feed_menu: ["Subscriptions", "Playlists"]
+          default_home: Subscriptions
+          comments: ["", ""]
+          player_style: invidious
+          related_videos: false
+          autoplay: true
+          continue: true
+          continue_autoplay: true
+          unseen_only: true
+          automatic_instance_redirect: true
         # external_port:
         # domain:
         # https_only: false
