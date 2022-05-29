@@ -31,7 +31,7 @@
   &nbsp;•&nbsp; 
   <a href="https://instances.invidious.io/">Instances list</a>
   &nbsp;•&nbsp;
-  <a href="https://docs.invidious.io/FAQ.md">FAQ</a>
+  <a href="https://docs.invidious.io/faq/">FAQ</a>
   &nbsp;•&nbsp; 
   <a href="https://docs.invidious.io/">Documentation</a>
   &nbsp;•&nbsp;
@@ -48,7 +48,7 @@
   </a>
   <br>
   <a rel="me" href="https://social.tchncs.de/@invidious">
-  <img alt="Mastodon: @invidious@social.tchncs.de" src="https://img.shields.io/badge/Mastodon-%40invidious%40social.tchncs.de-darkgreen">
+  <img alt="Fediverse: @invidious@social.tchncs.de" src="https://img.shields.io/badge/Fediverse-%40invidious%40social.tchncs.de-darkgreen">
   </a>
   <br>
   <a href="https://invidious.io/contact/">
@@ -88,7 +88,7 @@
 
 **Technical features**
 - Embedded video support
-- [Developer API](https://docs.invidious.io/API.md)
+- [Developer API](https://docs.invidious.io/api/)
 - Does not use official YouTube APIs
 - No Contributor License Agreement (CLA)
 
@@ -101,7 +101,7 @@
 
 **Hosting invidious:**
 
-- [Follow the installation instructions](https://docs.invidious.io/Installation.md)
+- [Follow the installation instructions](https://docs.invidious.io/installation/)
 
 
 ## Documentation
@@ -119,7 +119,7 @@ embedded youtube videos on other websites with invidious.
 
 The documentation contains a list of browser extensions that we recommended to use along with Invidious.
 
-You can read more here: https://docs.invidious.io/Extensions.md
+You can read more here: https://docs.invidious.io/applications/
 
 
 ## Contribute
@@ -150,6 +150,8 @@ Weblate also allows you to log-in with major SSO providers like Github, Gitlab, 
 - [PeerTubeify](https://gitlab.com/Cha_deL/peertubeify): On YouTube, displays a link to the same video on PeerTube, if it exists.
 - [MusicPiped](https://github.com/deep-gaurav/MusicPiped): A material design music player that streams music from YouTube.
 - [HoloPlay](https://github.com/stephane-r/HoloPlay): Funny Android application connecting on Invidious API's with search, playlists and favorites.
+- [WatchTube](https://github.com/WatchTubeTeam/WatchTube): Powerful YouTube client for Apple Watch.
+- [Yattee](https://github.com/yattee/yattee): Alternative YouTube frontend for iPhone, iPad, Mac and Apple TV.
 
 
 ## Liability

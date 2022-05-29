@@ -16,7 +16,13 @@
 
 require "digest/md5"
 require "file_utils"
+
+# Require kemal, kilt, then our own overrides
 require "kemal"
+require "kilt"
+require "./ext/kemal_content_for.cr"
+require "./ext/kemal_static_file_handler.cr"
+
 require "athena-negotiation"
 require "openssl/hmac"
 require "option_parser"
@@ -27,6 +33,7 @@ require "compress/zip"
 require "protodec/utils"
 
 require "./invidious/database/*"
+require "./invidious/database/migrations/*"
 require "./invidious/helpers/*"
 require "./invidious/yt_backend/*"
 require "./invidious/frontend/*"
@@ -34,6 +41,7 @@ require "./invidious/frontend/*"
 require "./invidious/*"
 require "./invidious/channels/*"
 require "./invidious/user/*"
+require "./invidious/search/*"
 require "./invidious/routes/**"
 require "./invidious/jobs/**"
 
@@ -100,6 +108,10 @@ Kemal.config.extra_options do |parser|
   end
   parser.on("-v", "--version", "Print version") do
     puts SOFTWARE.to_pretty_json
+    exit
+  end
+  parser.on("--migrate", "Run any migrations (beta, use at your own risk!!") do
+    Invidious::Database::Migrator.new(PG_DB).migrate
     exit
   end
 end

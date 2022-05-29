@@ -46,10 +46,10 @@ def error_template_helper(env : HTTP::Server::Context, status_code : Int32, exce
 
   TEXT
 
-  issue_template += github_details("Backtrace", HTML.escape(exception.inspect_with_backtrace))
+  issue_template += github_details("Backtrace", exception.inspect_with_backtrace)
 
   # URLs for the error message below
-  url_faq = "https://github.com/iv-org/documentation/blob/master/FAQ.md"
+  url_faq = "https://github.com/iv-org/documentation/blob/master/docs/faq.md"
   url_search_issues = "https://github.com/iv-org/invidious/issues"
 
   url_switch = "https://redirect.invidious.io" + env.request.resource
