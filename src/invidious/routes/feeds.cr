@@ -150,6 +150,8 @@ module Invidious::Routes::Feeds
       channel = get_about_info(ucid, locale)
     rescue ex : ChannelRedirect
       return env.redirect env.request.resource.gsub(ucid, ex.channel_id)
+    rescue ex : NotFoundException
+      return error_atom(404, ex)
     rescue ex
       return error_atom(500, ex)
     end
@@ -182,7 +184,7 @@ module Invidious::Routes::Feeds
         paid:               false,
         premium:            false,
         premiere_timestamp: nil,
-        author_verified:    false, # 	¯\_(ツ)_/¯
+        author_verified:    false,
       })
     end
 

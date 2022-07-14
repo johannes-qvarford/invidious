@@ -323,7 +323,7 @@ struct Video
 
       json.field "viewCount", self.views
       json.field "likeCount", self.likes
-      json.field "dislikeCount", self.dislikes
+      json.field "dislikeCount", 0_i64
 
       json.field "paid", self.paid
       json.field "premium", self.premium
@@ -354,7 +354,7 @@ struct Video
 
       json.field "lengthSeconds", self.length_seconds
       json.field "allowRatings", self.allow_ratings
-      json.field "rating", self.average_rating
+      json.field "rating", 0_i64
       json.field "isListed", self.is_listed
       json.field "liveNow", self.live_now
       json.field "isUpcoming", self.is_upcoming
@@ -554,11 +554,6 @@ struct Video
 
   def dislikes : Int64
     info["dislikes"]?.try &.as_i64 || 0_i64
-  end
-
-  def average_rating : Float64
-    # (likes / (likes + dislikes) * 4 + 1)
-    info["videoDetails"]["averageRating"]?.try { |t| t.as_f? || t.as_i64?.try &.to_f64 }.try &.round(4) || 0.0
   end
 
   def published : Time
@@ -813,14 +808,6 @@ struct Video
     return info.dig?("streamingData", "adaptiveFormats", 0, "projectionType").try &.as_s
   end
 
-  def wilson_score : Float64
-    ci_lower_bound(likes, likes + dislikes).round(4)
-  end
-
-  def engagement : Float64
-    (((likes + dislikes) / views) * 100).round(4)
-  end
-
   def reason : String?
     info["reason"]?.try &.as_s
   end
@@ -853,6 +840,7 @@ end
 # the same 11 first entries as the compact rendered.
 #
 # TODO: "compactRadioRenderer" (Mix) and
+# TODO: Use a proper struct/class instead of a hacky JSON object
 def parse_related_video(related : JSON::Any) : Hash(String, JSON::Any)?
   return nil if !related["videoId"]?
 
@@ -868,11 +856,7 @@ def parse_related_video(related : JSON::Any) : Hash(String, JSON::Any)?
     .try &.dig?("runs", 0)
 
   author = channel_info.try &.dig?("text")
-  author_verified_badge = related["ownerBadges"]?.try do |badges_array|
-    badges_array.as_a.find(&.dig("metadataBadgeRenderer", "tooltip").as_s.== "Verified")
-  end
-
-  author_verified = (author_verified_badge && author_verified_badge.size > 0).to_s
+  author_verified = has_verified_badge?(related["ownerBadges"]?).to_s
 
   ucid = channel_info.try { |ci| HelperExtractors.get_browse_id(ci) }
 
@@ -911,13 +895,20 @@ def extract_video_info(video_id : String, proxy_region : String? = nil, context_
 
   player_response = YoutubeAPI.player(video_id: video_id, params: "", client_config: client_config)
 
-  if player_response.dig?("playabilityStatus", "status").try &.as_s != "OK"
+  playability_status = player_response.dig?("playabilityStatus", "status").try &.as_s
+
+  if playability_status != "OK"
     subreason = player_response.dig?("playabilityStatus", "errorScreen", "playerErrorMessageRenderer", "subreason")
     reason = subreason.try &.[]?("simpleText").try &.as_s
     reason ||= subreason.try &.[]("runs").as_a.map(&.[]("text")).join("")
     reason ||= player_response.dig("playabilityStatus", "reason").as_s
+
     params["reason"] = JSON::Any.new(reason)
-    return params
+
+    # Stop here if video is not a scheduled livestream
+    if playability_status != "LIVE_STREAM_OFFLINE"
+      return params
+    end
   end
 
   params["shortDescription"] = player_response.dig?("videoDetails", "shortDescription") || JSON::Any.new(nil)
@@ -1008,7 +999,7 @@ def extract_video_info(video_id : String, proxy_region : String? = nil, context_
 
   params["relatedVideos"] = JSON::Any.new(related)
 
-  # Likes/dislikes
+  # Likes
 
   toplevel_buttons = video_primary_renderer
     .try &.dig?("videoActions", "menuRenderer", "topLevelButtons")
@@ -1026,30 +1017,10 @@ def extract_video_info(video_id : String, proxy_region : String? = nil, context_
       LOGGER.trace("extract_video_info: Found \"likes\" button. Button text is \"#{likes_txt}\"")
       LOGGER.debug("extract_video_info: Likes count is #{likes}") if likes
     end
-
-    dislikes_button = toplevel_buttons.as_a
-      .find(&.dig("toggleButtonRenderer", "defaultIcon", "iconType").as_s.== "DISLIKE")
-      .try &.["toggleButtonRenderer"]
-
-    if dislikes_button
-      dislikes_txt = (dislikes_button["defaultText"]? || dislikes_button["toggledText"]?)
-        .try &.dig?("accessibility", "accessibilityData", "label")
-      dislikes = dislikes_txt.as_s.gsub(/\D/, "").to_i64? if dislikes_txt
-
-      LOGGER.trace("extract_video_info: Found \"dislikes\" button. Button text is \"#{dislikes_txt}\"")
-      LOGGER.debug("extract_video_info: Dislikes count is #{dislikes}") if dislikes
-    end
-  end
-
-  if likes && likes != 0_i64 && (!dislikes || dislikes == 0_i64)
-    if rating = player_response.dig?("videoDetails", "averageRating").try { |x| x.as_i64? || x.as_f? }
-      dislikes = (likes * ((5 - rating)/(rating - 1))).round.to_i64
-      LOGGER.debug("extract_video_info: Dislikes count (using fallback method) is #{dislikes}")
-    end
   end
 
   params["likes"] = JSON::Any.new(likes || 0_i64)
-  params["dislikes"] = JSON::Any.new(dislikes || 0_i64)
+  params["dislikes"] = JSON::Any.new(0_i64)
 
   # Description
 
@@ -1089,17 +1060,19 @@ def extract_video_info(video_id : String, proxy_region : String? = nil, context_
 
   # Author infos
 
-  author_info = video_secondary_renderer.try &.dig?("owner", "videoOwnerRenderer")
-  author_thumbnail = author_info.try &.dig?("thumbnail", "thumbnails", 0, "url")
+  if author_info = video_secondary_renderer.try &.dig?("owner", "videoOwnerRenderer")
+    author_thumbnail = author_info.dig?("thumbnail", "thumbnails", 0, "url")
+    params["authorThumbnail"] = JSON::Any.new(author_thumbnail.try &.as_s || "")
 
-  author_verified_badge = author_info.try &.dig?("badges", 0, "metadataBadgeRenderer", "tooltip")
-  author_verified = (!author_verified_badge.nil? && author_verified_badge == "Verified")
-  params["authorVerified"] = JSON::Any.new(author_verified)
+    author_verified = has_verified_badge?(author_info["badges"]?)
+    params["authorVerified"] = JSON::Any.new(author_verified)
 
-  params["authorThumbnail"] = JSON::Any.new(author_thumbnail.try &.as_s || "")
+    subs_text = author_info["subscriberCountText"]?
+      .try { |t| t["simpleText"]? || t.dig?("runs", 0, "text") }
+      .try &.as_s.split(" ", 2)[0]
 
-  params["subCountText"] = JSON::Any.new(author_info.try &.["subscriberCountText"]?
-    .try { |t| t["simpleText"]? || t.dig?("runs", 0, "text") }.try &.as_s.split(" ", 2)[0] || "-")
+    params["subCountText"] = JSON::Any.new(subs_text || "-")
+  end
 
   # Return data
 
@@ -1159,7 +1132,11 @@ def fetch_video(id, region)
   end
 
   if reason = info["reason"]?
-    raise InfoException.new(reason.as_s || "")
+    if reason == "Video unavailable"
+      raise NotFoundException.new(reason.as_s || "")
+    else
+      raise InfoException.new(reason.as_s || "")
+    end
   end
 
   video = Video.new({
